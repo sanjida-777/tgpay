@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, jsonify
 import requests
-import os
+import os, json
 
 app = Flask(__name__)
 
@@ -9,6 +9,8 @@ BOT_TOKEN = "6477272802:AAFiO2Z9LGPXnmNLu-alkXqn-lQanQblZoM"
 PROVIDER_TOKEN = "6073714100:TEST:TG_OBqaSK8xDn4xEZBq7AQ16N8A"  # Replace with your Stars provider token
 ITEM_NAME = "Premium Item"
 ITEM_PRICE = 1  # 1 Star
+
+CURRENCY = "XTR"  # Replace with actual Telegram currency
 
 # ✅ Home Route: Display the store page
 @app.route("/")
@@ -30,27 +32,32 @@ def pay():
         "description": "Exclusive item available for 1 Telegram Star!",
         "payload": "unique_payload",
         "provider_token": PROVIDER_TOKEN,
-        "currency": "XTR",
-        "prices": [{"label": ITEM_NAME, "amount": ITEM_PRICE }],  # Amount in smallest units
+        "currency": CURRENCY,
+        "prices": [{"label": ITEM_NAME, "amount": ITEM_PRICE}],  # Amount in smallest units
         "start_parameter": "start",
-        "provider_data" : "{}"
+        "provider_data": json.dumps({})  # ✅ Correctly formatted empty JSON
     }
 
     response = requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendInvoice", json=payload)
-    return jsonify(response.json())
+    
+    try:
+        response_data = response.json()
+        return jsonify(response_data)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 # ✅ Webhook Route: Handles Telegram payment confirmation
 @app.route("/webhook", methods=["POST"])
 def webhook():
     data = request.json
-    print("Received Webhook Data:", data)  # Debugging log
+    print("🔹 Received Webhook Data:", json.dumps(data, indent=2))  # Debugging log
 
     # ✅ Handle Pre-Checkout Query (MUST be answered within 10 seconds)
     if "pre_checkout_query" in data:
         pre_checkout_id = data["pre_checkout_query"]["id"]
         
         # 🛠️ First, immediately approve the payment
-        requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/answerPreCheckoutQuery", json={
+        response = requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/answerPreCheckoutQuery", json={
             "pre_checkout_query_id": pre_checkout_id,
             "ok": True
         })
@@ -59,16 +66,17 @@ def webhook():
 
     # ✅ Handle Successful Payment
     if "message" in data and "successful_payment" in data["message"]:
-        print("Payment Successful:", data["message"]["successful_payment"])
+        print("💰 Payment Successful:", json.dumps(data["message"]["successful_payment"], indent=2))
         chat_id = data["message"]["chat"]["id"]
 
         # Send a confirmation message to the user
-        requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", json={
+        response = requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", json={
             "chat_id": chat_id,
             "text": "✅ Thank you! Your item has been delivered."
         })
 
     return jsonify({"status": "ok"})
 
+# ✅ Start Flask Server
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0")
+    app.run(host="0.0.0.0", port=5000)
