@@ -68,14 +68,6 @@
     </form>
 
     <p class="message" id="paymentMessage"></p>
-
-    <h2>Request Refund</h2>
-    <form id="refundForm">
-        <input type="text" id="refund_user_id" placeholder="Enter your Telegram User ID for Refund" required>
-        <button type="button" class="button" onclick="requestRefund()">Request Refund</button>
-    </form>
-
-    <p class="message" id="refundMessage"></p>
 </div>
 
 <script>
@@ -107,29 +99,6 @@
         });
     }
 
-    function requestRefund() {
-        const user_id = document.getElementById('refund_user_id').value;
-        if (!user_id) {
-            alert("Please enter your user ID!");
-            return;
-        }
-
-        fetch('/refund', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ user_id: user_id })
-        })
-        .then(response => response.json())
-        .then(data => {
-            document.getElementById('refundMessage').innerText = data.message || data.error;
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert("An error occurred while processing the refund.");
-        });
-    }
 </script>
 
 </body>
