@@ -62,18 +62,27 @@ def pay():
 @app.route("/webhook", methods=["POST"])
 def webhook():
     data = request.json
-    logging.debug("🔹 Received Webhook Data: %s", json.dumps(data, indent=2))  # Log the incoming data
+    print("🔹 Received Webhook Data:", json.dumps(data, indent=2))  # Debugging log
 
     try:
+        # Check if 'message' exists and log it
+        if 'message' not in data:
+            print("⚠️ 'message' key not found in webhook data")
+            return jsonify({"status": "error", "message": "'message' key missing"}), 400
+        
         # ✅ Handle Successful Payment
-        if "message" in data and "successful_payment" in data["message"]:
+        if "successful_payment" in data["message"]:
             successful_payment = data["message"]["successful_payment"]
-            chat_id = str(data["message"]["chat"]["id"])
+            chat_id = str(data["message"]["chat"]["id"]) if 'chat' in data["message"] else None
+            if chat_id is None:
+                print("⚠️ 'chat' key not found in message")
+                return jsonify({"status": "error", "message": "'chat' key missing"}), 400
+            
             payment_id = successful_payment["telegram_payment_charge_id"]
 
             # Store the payment record
             PAYMENT_RECORDS[chat_id] = payment_id
-            logging.debug(f"💰 Payment Successful! Stored Payment ID: {payment_id}")
+            print(f"💰 Payment Successful! Stored Payment ID: {payment_id}")
 
             # Send a confirmation message
             requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", json={
@@ -82,15 +91,19 @@ def webhook():
             })
 
         # ✅ Handle Refund Notifications from Telegram
-        if "message" in data and "refunded_payment" in data["message"]:
+        if "refunded_payment" in data["message"]:
             refunded_payment = data["message"]["refunded_payment"]
-            chat_id = str(data["message"]["chat"]["id"])
+            chat_id = str(data["message"]["chat"]["id"]) if 'chat' in data["message"] else None
+            if chat_id is None:
+                print("⚠️ 'chat' key not found in refunded_payment message")
+                return jsonify({"status": "error", "message": "'chat' key missing"}), 400
+
             refund_id = refunded_payment["telegram_payment_charge_id"]
 
             # Verify if this payment was originally recorded
             if chat_id in PAYMENT_RECORDS and PAYMENT_RECORDS[chat_id] == refund_id:
                 REFUNDED_PAYMENTS[chat_id] = refund_id  # Store the refund record
-                logging.debug(f"🔄 Refund received! Payment ID: {refund_id}")
+                print(f"🔄 Refund received! Payment ID: {refund_id}")
 
                 # Notify the user
                 requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", json={
@@ -98,13 +111,14 @@ def webhook():
                     "text": "🔄 Your payment has been refunded successfully. Your Stars should be back in your balance soon!"
                 })
             else:
-                logging.warning(f"⚠️ Refund received for unknown or mismatched payment: {refund_id}")
+                print(f"⚠️ Refund received for unknown or mismatched payment: {refund_id}")
 
         return jsonify({"status": "ok"})
 
     except Exception as e:
-        logging.error(f"Error in processing webhook: {str(e)}")
+        print(f"⚠️ Error in processing webhook: {str(e)}")
         return jsonify({"status": "error", "message": str(e)}), 500
+
 
 # Refund Route (for testing)
 @app.route("/refund", methods=["POST"])
