@@ -52,7 +52,7 @@ def pay():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# ✅ Webhook Route: Handles Telegram payment & refund notifications
+
 @app.route("/webhook", methods=["POST"])
 def webhook():
     data = request.json
@@ -110,7 +110,7 @@ def refund():
 
     payment_id = PAYMENT_RECORDS[user_id]  # Get the transaction ID
 
-    # ❌ You CANNOT refund directly via API. You must manually request it.
+    # Log the refund request
     print(f"🔄 Refund requested for User ID: {user_id}, Payment ID: {payment_id}")
 
     return jsonify({"message": "Refund request recorded. Wait for Telegram to process it.", "payment_id": payment_id})
