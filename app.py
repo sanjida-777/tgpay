@@ -30,7 +30,7 @@ def pay():
         "description": "Exclusive item available for 1 Telegram Star!",
         "payload": "unique_payload",
         "provider_token": PROVIDER_TOKEN,
-        "currency": "star",
+        "currency": "XTR",
         "prices": [{"label": ITEM_NAME, "amount": ITEM_PRICE * 100}],  # Amount in smallest units
         "start_parameter": "start"
     }
