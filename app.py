@@ -45,18 +45,24 @@ def webhook():
     data = request.json
     print("Received Webhook Data:", data)  # Debugging log
 
-    # 🔹 Handle Pre-Checkout (approve the payment)
+    # ✅ Handle Pre-Checkout Query (MUST be answered within 10 seconds)
     if "pre_checkout_query" in data:
-        print("Pre-Checkout Query:", data["pre_checkout_query"])
+        pre_checkout_id = data["pre_checkout_query"]["id"]
+        
+        # 🛠️ First, immediately approve the payment
         requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/answerPreCheckoutQuery", json={
-            "pre_checkout_query_id": data["pre_checkout_query"]["id"],
+            "pre_checkout_query_id": pre_checkout_id,
             "ok": True
         })
 
-    # 🔹 Handle Successful Payment
-    if "successful_payment" in data.get("message", {}):
+        print("✅ Pre-checkout query approved!")
+
+    # ✅ Handle Successful Payment
+    if "message" in data and "successful_payment" in data["message"]:
         print("Payment Successful:", data["message"]["successful_payment"])
         chat_id = data["message"]["chat"]["id"]
+
+        # Send a confirmation message to the user
         requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", json={
             "chat_id": chat_id,
             "text": "✅ Thank you! Your item has been delivered."
