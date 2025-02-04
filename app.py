@@ -58,23 +58,12 @@ def webhook():
     data = request.json
     print("🔹 Received Webhook Data:", json.dumps(data, indent=2))  # Debugging log
 
-    # ✅ Handle Pre-Checkout Query (MUST be answered within 10 seconds)
-    if "pre_checkout_query" in data:
-        pre_checkout_id = data["pre_checkout_query"]["id"]
-        
-        # Approve the payment immediately
-        requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/answerPreCheckoutQuery", json={
-            "pre_checkout_query_id": pre_checkout_id,
-            "ok": True
-        })
-        print("✅ Pre-checkout query approved!")
-
     # ✅ Handle Successful Payment
     if "message" in data and "successful_payment" in data["message"]:
         successful_payment = data["message"]["successful_payment"]
         chat_id = str(data["message"]["chat"]["id"])
-        payment_id = successful_payment["telegram_payment_charge_id"]  # Get the payment ID
-        
+        payment_id = successful_payment["telegram_payment_charge_id"]
+
         # Store the payment record
         PAYMENT_RECORDS[chat_id] = payment_id
         print(f"💰 Payment Successful! Stored Payment ID: {payment_id}")
@@ -91,19 +80,22 @@ def webhook():
         chat_id = str(data["message"]["chat"]["id"])
         refund_id = refunded_payment["telegram_payment_charge_id"]
 
-        # Store refunded transactions
-        REFUNDED_PAYMENTS[chat_id] = refund_id
-        print(f"🔄 Refund received! Payment ID: {refund_id}")
+        # Verify if this payment was originally recorded
+        if chat_id in PAYMENT_RECORDS and PAYMENT_RECORDS[chat_id] == refund_id:
+            REFUNDED_PAYMENTS[chat_id] = refund_id  # Store the refund record
+            print(f"🔄 Refund received! Payment ID: {refund_id}")
 
-        # Notify the user
-        requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", json={
-            "chat_id": chat_id,
-            "text": "🔄 Your payment has been refunded successfully."
-        })
+            # Notify the user
+            requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", json={
+                "chat_id": chat_id,
+                "text": "🔄 Your payment has been refunded successfully. Your Stars should be back in your balance soon!"
+            })
+        else:
+            print(f"⚠️ Refund received for unknown or mismatched payment: {refund_id}")
 
     return jsonify({"status": "ok"})
 
-# ✅ Refund Route: Initiate refund manually (if using external providers)
+# ✅ Refund Route (for testing)
 @app.route("/refund", methods=["POST"])
 def refund():
     data = request.json
@@ -116,19 +108,12 @@ def refund():
     if user_id not in PAYMENT_RECORDS:
         return jsonify({"error": "No valid payment found for refund"}), 400
 
-    # Check if the payment is already refunded
-    if user_id in REFUNDED_PAYMENTS:
-        return jsonify({"error": "Payment already refunded"}), 400
+    payment_id = PAYMENT_RECORDS[user_id]  # Get the transaction ID
 
-    payment_id = PAYMENT_RECORDS.pop(user_id)  # Remove from payment records
+    # ❌ You CANNOT refund directly via API. You must manually request it.
+    print(f"🔄 Refund requested for User ID: {user_id}, Payment ID: {payment_id}")
 
-    # ❌ Telegram does not support refund requests
-    # ✅ If your payment provider supports refunds, call their refund API here
+    return jsonify({"message": "Refund request recorded. Wait for Telegram to process it.", "payment_id": payment_id})
 
-    print(f"🔄 Refund processed for User ID: {user_id}, Payment ID: {payment_id}")
-
-    return jsonify({"message": "Refund requested. Check with your provider.", "payment_id": payment_id})
-
-# ✅ Start Flask Server
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
