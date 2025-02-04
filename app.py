@@ -1,7 +1,10 @@
 from flask import Flask, render_template, request, jsonify
 import requests
 import os, json
+import logging
 
+# Set up logging
+logging.basicConfig(level=logging.DEBUG)
 app = Flask(__name__)
 
 # Telegram Bot Credentials
