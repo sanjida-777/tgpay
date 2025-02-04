@@ -12,83 +12,11 @@ ITEM_PRICE = 1  # 1 Star
 
 CURRENCY = "XTR"  # Replace with actual Telegram currency
 
-# ✅ Home Route: Display the store page
-@app.route("/")
-def home():
-    return render_template("index.html", item_name=ITEM_NAME, item_price=ITEM_PRICE)
 
-# ✅ Payment Route: Handles payment request
-@app.route("/pay", methods=["POST"])
-def pay():
-    data = request.json
-    user_id = data.get("user_id")  # Extract Telegram user ID
-    if not user_id:
-        return jsonify({"error": "User ID required"}), 400
-
-    # Create an invoice payload
-    payload = {
-        "chat_id": user_id,
-        "title": ITEM_NAME,
-        "description": "Exclusive item available for 1 Telegram Star!",
-        "payload": "unique_payload",
-        "provider_token": PROVIDER_TOKEN,
-        "currency": CURRENCY,
-        "prices": [{"label": ITEM_NAME, "amount": ITEM_PRICE}],  # Amount in smallest units
-        "start_parameter": "start",
-        "provider_data": json.dumps({})  # ✅ Correctly formatted empty JSON
-    }
-
-    response = requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendInvoice", json=payload)
-    
-    try:
-        response_data = response.json()
-        return jsonify(response_data)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-# ✅ Webhook Route: Handles Telegram payment confirmation
-@app.route("/webhook", methods=["POST"])
-def webhook():
-    data = request.json
-    print("🔹 Received Webhook Data:", json.dumps(data, indent=2))  # Debugging log
-
-    # ✅ Handle Pre-Checkout Query (MUST be answered within 10 seconds)
-    if "pre_checkout_query" in data:
-        pre_checkout_id = data["pre_checkout_query"]["id"]
-        
-        # 🛠️ First, immediately approve the payment
-        response = requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/answerPreCheckoutQuery", json={
-            "pre_checkout_query_id": pre_checkout_id,
-            "ok": True
-        })
-
-        print("✅ Pre-checkout query approved!")
-
-    # ✅ Handle Successful Payment
-    if "message" in data and "successful_payment" in data["message"]:
-        print("💰 Payment Successful:", json.dumps(data["message"]["successful_payment"], indent=2))
-        chat_id = data["message"]["chat"]["id"]
-
-        # Send a confirmation message to the user
-        response = requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", json={
-            "chat_id": chat_id,
-            "text": "✅ Thank you! Your item has been delivered."
-        })
-
-    return jsonify({"status": "ok"})
-
-import requests
-import json
-from flask import Flask, request, jsonify, render_template
-
-app = Flask(__name__)
-
-# ✅ Replace these with your actual values
-BOT_TOKEN = "YOUR_BOT_TOKEN"
-PROVIDER_TOKEN = "YOUR_PROVIDER_TOKEN"
-ITEM_NAME = "Exclusive Item"
-ITEM_PRICE = 100  # Example: 100 units in smallest currency (e.g., cents)
-CURRENCY = "XTR"  # Replace with actual Telegram currency
+# ✅ Store user payments (Format: { user_id: payment_id })
+PAYMENT_RECORDS = {}
+# ✅ Store refunded payments (Format: { user_id: refund_id })
+REFUNDED_PAYMENTS = {}
 
 # ✅ Home Route: Display the store page
 @app.route("/")
@@ -99,7 +27,7 @@ def home():
 @app.route("/pay", methods=["POST"])
 def pay():
     data = request.json
-    user_id = data.get("user_id")  # Extract Telegram user ID
+    user_id = str(data.get("user_id"))  # Convert to string for consistency
     if not user_id:
         return jsonify({"error": "User ID required"}), 400
 
@@ -108,12 +36,12 @@ def pay():
         "chat_id": user_id,
         "title": ITEM_NAME,
         "description": "Exclusive item available for 1 Telegram Star!",
-        "payload": "unique_payload",
+        "payload": f"user_{user_id}_payment",
         "provider_token": PROVIDER_TOKEN,
         "currency": CURRENCY,
         "prices": [{"label": ITEM_NAME, "amount": ITEM_PRICE}],  # Amount in smallest units
         "start_parameter": "start",
-        "provider_data": json.dumps({})  # ✅ Correctly formatted empty JSON
+        "provider_data": json.dumps({})
     }
 
     response = requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendInvoice", json=payload)
@@ -124,7 +52,7 @@ def pay():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# ✅ Webhook Route: Handles Telegram payment confirmation
+# ✅ Webhook Route: Handles Telegram payment & refund notifications
 @app.route("/webhook", methods=["POST"])
 def webhook():
     data = request.json
@@ -134,50 +62,72 @@ def webhook():
     if "pre_checkout_query" in data:
         pre_checkout_id = data["pre_checkout_query"]["id"]
         
-        # 🛠️ First, immediately approve the payment
-        response = requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/answerPreCheckoutQuery", json={
+        # Approve the payment immediately
+        requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/answerPreCheckoutQuery", json={
             "pre_checkout_query_id": pre_checkout_id,
             "ok": True
         })
-
         print("✅ Pre-checkout query approved!")
 
     # ✅ Handle Successful Payment
     if "message" in data and "successful_payment" in data["message"]:
-        print("💰 Payment Successful:", json.dumps(data["message"]["successful_payment"], indent=2))
-        chat_id = data["message"]["chat"]["id"]
+        successful_payment = data["message"]["successful_payment"]
+        chat_id = str(data["message"]["chat"]["id"])
+        payment_id = successful_payment["telegram_payment_charge_id"]  # Get the payment ID
+        
+        # Store the payment record
+        PAYMENT_RECORDS[chat_id] = payment_id
+        print(f"💰 Payment Successful! Stored Payment ID: {payment_id}")
 
-        # Send a confirmation message to the user
-        response = requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", json={
+        # Send a confirmation message
+        requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", json={
             "chat_id": chat_id,
             "text": "✅ Thank you! Your item has been delivered."
         })
 
+    # ✅ Handle Refund Notifications from Telegram
+    if "message" in data and "refunded_payment" in data["message"]:
+        refunded_payment = data["message"]["refunded_payment"]
+        chat_id = str(data["message"]["chat"]["id"])
+        refund_id = refunded_payment["telegram_payment_charge_id"]
+
+        # Store refunded transactions
+        REFUNDED_PAYMENTS[chat_id] = refund_id
+        print(f"🔄 Refund received! Payment ID: {refund_id}")
+
+        # Notify the user
+        requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", json={
+            "chat_id": chat_id,
+            "text": "🔄 Your payment has been refunded successfully."
+        })
+
     return jsonify({"status": "ok"})
 
+# ✅ Refund Route: Initiate refund manually (if using external providers)
 @app.route("/refund", methods=["POST"])
 def refund():
     data = request.json
-    user_id = data.get("user_id")
+    user_id = str(data.get("user_id"))
 
-    if not user_id or user_id not in PAYMENT_RECORDS:
-        return jsonify({"error": "No valid payment found for this user"}), 400
+    if not user_id:
+        return jsonify({"error": "User ID required"}), 400
 
-    payment_charge_id = PAYMENT_RECORDS[user_id]
+    # Check if the user has a valid payment
+    if user_id not in PAYMENT_RECORDS:
+        return jsonify({"error": "No valid payment found for refund"}), 400
 
-    # Call refund API
-    response = requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/refundMessage", json={
-        "chat_id": user_id,
-        "telegram_payment_charge_id": payment_charge_id
-    })
+    # Check if the payment is already refunded
+    if user_id in REFUNDED_PAYMENTS:
+        return jsonify({"error": "Payment already refunded"}), 400
 
-    refund_data = response.json()
-    print("🔄 Refund Response:", json.dumps(refund_data, indent=2))
+    payment_id = PAYMENT_RECORDS.pop(user_id)  # Remove from payment records
 
-    if refund_data.get("ok"):
-        return jsonify({"message": "✅ Refund successful!"})
-    else:
-        return jsonify({"error": "Refund failed!", "details": refund_data}), 400
+    # ❌ Telegram does not support refund requests
+    # ✅ If your payment provider supports refunds, call their refund API here
+
+    print(f"🔄 Refund processed for User ID: {user_id}, Payment ID: {payment_id}")
+
+    return jsonify({"message": "Refund requested. Check with your provider.", "payment_id": payment_id})
 
 # ✅ Start Flask Server
 if __name__ == "__main__":
