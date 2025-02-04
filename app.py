@@ -10,20 +10,19 @@ PROVIDER_TOKEN = "6073714100:TEST:TG_OBqaSK8xDn4xEZBq7AQ16N8A"  # Replace with y
 ITEM_NAME = "Premium Item"
 ITEM_PRICE = 1  # 1 Star
 
-CURRENCY = "XTR"  # Replace with actual Telegram currency
+CURRENCY = "XTR"  # Example: "USD", "EUR", etc.
 
-
-# ✅ Store user payments (Format: { user_id: payment_id })
+# Store user payments (Format: { user_id: payment_id })
 PAYMENT_RECORDS = {}
-# ✅ Store refunded payments (Format: { user_id: refund_id })
+# Store refunded payments (Format: { user_id: refund_id })
 REFUNDED_PAYMENTS = {}
 
-# ✅ Home Route: Display the store page
+# Home Route: Display the store page
 @app.route("/")
 def home():
     return render_template("index.html", item_name=ITEM_NAME, item_price=ITEM_PRICE)
 
-# ✅ Payment Route: Handles payment request
+# Payment Route: Handles payment request
 @app.route("/pay", methods=["POST"])
 def pay():
     data = request.json
@@ -44,21 +43,25 @@ def pay():
         "provider_data": json.dumps({})
     }
 
+    # Send invoice to Telegram
     response = requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendInvoice", json=payload)
     
     try:
         response_data = response.json()
-        return jsonify(response_data)
+        if response_data.get('ok'):
+            return jsonify(response_data)
+        else:
+            return jsonify({"error": "Error sending invoice", "message": response_data.get("description")}), 500
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Failed to parse response", "message": str(e)}), 500
 
-
+# Webhook to handle Telegram updates
 @app.route("/webhook", methods=["POST"])
 def webhook():
     data = request.json
-    print("🔹 Received Webhook Data:", json.dumps(data, indent=2))  # Debugging log
+    print(f"🔹 Received Webhook Data: {json.dumps(data, indent=2)}")  # Debugging log
 
-    # ✅ Handle Successful Payment
+    # Handle Successful Payment
     if "message" in data and "successful_payment" in data["message"]:
         successful_payment = data["message"]["successful_payment"]
         chat_id = str(data["message"]["chat"]["id"])
@@ -74,7 +77,7 @@ def webhook():
             "text": "✅ Thank you! Your item has been delivered."
         })
 
-    # ✅ Handle Refund Notifications from Telegram
+    # Handle Refund Notifications from Telegram
     if "message" in data and "refunded_payment" in data["message"]:
         refunded_payment = data["message"]["refunded_payment"]
         chat_id = str(data["message"]["chat"]["id"])
@@ -95,7 +98,7 @@ def webhook():
 
     return jsonify({"status": "ok"})
 
-# ✅ Refund Route (for testing)
+# Refund Route (for testing)
 @app.route("/refund", methods=["POST"])
 def refund():
     data = request.json
@@ -112,6 +115,12 @@ def refund():
 
     # Log the refund request
     print(f"🔄 Refund requested for User ID: {user_id}, Payment ID: {payment_id}")
+
+    return jsonify({"message": "Refund request recorded. Wait for Telegram to process it.", "payment_id": payment_id})
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000)
+
 
     return jsonify({"message": "Refund request recorded. Wait for Telegram to process it.", "payment_id": payment_id})
 
