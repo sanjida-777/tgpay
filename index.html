@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buy Item with Telegram Stars</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Buy {{ item_name }}</h1>
+        <p>Price: {{ item_price }} Telegram Star</p>
+        <button id="buy-button">Buy Now</button>
+    </div>
+
+    <script>
+        document.getElementById("buy-button").addEventListener("click", function() {
+            const user_id = prompt("Enter your Telegram User ID:");
+
+            if (!user_id) {
+                alert("User ID is required!");
+                return;
+            }
+
+            fetch("/pay", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ user_id: user_id })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.ok) {
+                    alert("Payment request sent! Complete it in Telegram.");
+                } else {
+                    alert("Error: " + data.description);
+                }
+            })
+            .catch(error => console.error("Error:", error));
+        });
+    </script>
+</body>
+</html>
