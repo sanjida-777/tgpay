@@ -64,20 +64,27 @@ def webhook():
     data = request.json
     print("🔹 Received Webhook Data:", json.dumps(data, indent=2))  # Debugging log
 
+    if not data:
+        print("⚠️ No data received!")
+        return jsonify({"status": "error", "message": "No data received"}), 400
+    
+    # ✅ Log the message part to ensure it's correctly received
+    if 'message' not in data:
+        print("⚠️ 'message' key not found in webhook data")
+        return jsonify({"status": "error", "message": "'message' key missing"}), 400
+
+    message_data = data["message"]
+    print("🔹 Message Data:", json.dumps(message_data, indent=2))  # Log the message content
+
     try:
-        # Check if 'message' exists and log it
-        if 'message' not in data:
-            print("⚠️ 'message' key not found in webhook data")
-            return jsonify({"status": "error", "message": "'message' key missing"}), 400
-        
         # ✅ Handle Successful Payment
-        if "successful_payment" in data["message"]:
-            successful_payment = data["message"]["successful_payment"]
-            chat_id = str(data["message"]["chat"]["id"]) if 'chat' in data["message"] else None
+        if "successful_payment" in message_data:
+            successful_payment = message_data["successful_payment"]
+            chat_id = str(message_data["chat"]["id"]) if 'chat' in message_data else None
             if chat_id is None:
                 print("⚠️ 'chat' key not found in message")
                 return jsonify({"status": "error", "message": "'chat' key missing"}), 400
-            
+
             payment_id = successful_payment["telegram_payment_charge_id"]
 
             # Store the payment record
@@ -91,9 +98,9 @@ def webhook():
             })
 
         # ✅ Handle Refund Notifications from Telegram
-        if "refunded_payment" in data["message"]:
-            refunded_payment = data["message"]["refunded_payment"]
-            chat_id = str(data["message"]["chat"]["id"]) if 'chat' in data["message"] else None
+        if "refunded_payment" in message_data:
+            refunded_payment = message_data["refunded_payment"]
+            chat_id = str(message_data["chat"]["id"]) if 'chat' in message_data else None
             if chat_id is None:
                 print("⚠️ 'chat' key not found in refunded_payment message")
                 return jsonify({"status": "error", "message": "'chat' key missing"}), 400
