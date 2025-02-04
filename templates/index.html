@@ -3,56 +3,58 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Telegram Payments</title>
-    <script>
-        async function makePayment() {
-            const userId = prompt("Enter your Telegram User ID:");
-            if (!userId) {
-                alert("User ID is required!");
-                return;
-            }
+    <title>Store Page</title>
+    <style>
+        body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f4;
+    text-align: center;
+    padding: 50px;
+}
 
-            const response = await fetch("/pay", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ user_id: userId })
-            });
+.container {
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+    display: inline-block;
+}
 
-            const data = await response.json();
-            if (data.ok) {
-                alert("✅ Payment request sent! Check your Telegram.");
-            } else {
-                alert("❌ Payment failed: " + JSON.stringify(data));
-            }
-        }
+h1 {
+    color: #333;
+}
 
-        async function requestRefund() {
-            const userId = prompt("Enter your Telegram User ID:");
-            if (!userId) {
-                alert("User ID is required!");
-                return;
-            }
+button {
+    background-color: #0088cc;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    font-size: 16px;
+    cursor: pointer;
+}
 
-            const response = await fetch("/refund", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ user_id: userId })
-            });
-
-            const data = await response.json();
-            if (data.message) {
-                alert("✅ Refund Successful!");
-            } else {
-                alert("❌ Refund Failed: " + JSON.stringify(data));
-            }
-        }
-    </script>
+button:hover {
+    background-color: #005f99;
+}
+    </style>
 </head>
 <body>
-    <h1>Telegram Payments</h1>
-    <p>Purchase: <b>{{ item_name }}</b> for <b>{{ item_price }}</b> units.</p>
+    <h1>{{ item_name }}</h1>
+    <p>Price: {{ item_price }} {{ currency }}</p>
 
-    <button onclick="makePayment()">💳 Make Payment</button>
-    <button onclick="requestRefund()">🔄 Request Refund</button>
+    <form action="/pay" method="POST">
+        <input type="hidden" name="user_id" value="USER_ID_HERE">  <!-- Add actual user ID dynamically -->
+        <button type="submit">Pay Now</button>
+    </form>
+
+    <h2>Request a Refund</h2>
+    <form action="/refund" method="POST">
+        <input type="text" name="user_id" placeholder="Enter your User ID for refund" required>
+        <button type="submit">Request Refund</button>
+    </form>
+
+    <script>
+        // You can use JavaScript to make AJAX requests for the refund if needed (optional)
+    </script>
 </body>
 </html>
