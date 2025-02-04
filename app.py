@@ -62,79 +62,26 @@ def pay():
 @app.route("/webhook", methods=["POST"])
 def webhook():
     data = request.json
-    print("🔹 Received Webhook Data:", json.dumps(data, indent=2))  # Debugging log
+    with open("webhook_log.json", "a") as log_file:
+        log_file.write(str(data) + "\n")  # ✅ Logs webhook data
 
-    if not data:
-        print("⚠️ No data received!")
-        return jsonify({"status": "error", "message": "No data received"}), 400
+    print("Received Webhook Data:", data)
 
-    # ✅ Log the message part to ensure it's correctly received
-    if 'message' not in data:
-        print("⚠️ 'message' key not found in webhook data")
-        return render_template("error.html", message="'message' key missing"), 400  # Render error page
+    if "pre_checkout_query" in data:
+        requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/answerPreCheckoutQuery", json={
+            "pre_checkout_query_id": data["pre_checkout_query"]["id"],
+            "ok": True
+        })
 
-    message_data = data["message"]
-    print("🔹 Message Data:", json.dumps(message_data, indent=2))  # Log the message content
+    if "successful_payment" in data.get("message", {}):
+        chat_id = data["message"]["chat"]["id"]
+        requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", json={
+            "chat_id": chat_id,
+            "text": "✅ Payment received!"
+        })
 
-    try:
-        # ✅ Handle Successful Payment
-        if "successful_payment" in message_data:
-            successful_payment = message_data["successful_payment"]
+    return jsonify({"status": "ok"})
 
-            # Check if 'chat' exists in the message before accessing it
-            chat_id = None
-            if 'chat' in message_data:
-                chat_id = str(message_data["chat"]["id"])
-
-            if not chat_id:
-                print("⚠️ 'chat' key not found in message")
-                return render_template("error.html", message="'chat' key missing"), 400  # Render error page
-
-            payment_id = successful_payment["telegram_payment_charge_id"]
-
-            # Store the payment record
-            PAYMENT_RECORDS[chat_id] = payment_id
-            print(f"💰 Payment Successful! Stored Payment ID: {payment_id}")
-
-            # Send a confirmation message
-            requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", json={
-                "chat_id": chat_id,
-                "text": "✅ Thank you! Your item has been delivered."
-            })
-
-        # ✅ Handle Refund Notifications from Telegram
-        if "refunded_payment" in message_data:
-            refunded_payment = message_data["refunded_payment"]
-
-            # Check if 'chat' exists in the message before accessing it
-            chat_id = None
-            if 'chat' in message_data:
-                chat_id = str(message_data["chat"]["id"])
-
-            if not chat_id:
-                print("⚠️ 'chat' key not found in refunded_payment message")
-                return render_template("error.html", message="'chat' key missing"), 400  # Render error page
-
-            refund_id = refunded_payment["telegram_payment_charge_id"]
-
-            # Verify if this payment was originally recorded
-            if chat_id in PAYMENT_RECORDS and PAYMENT_RECORDS[chat_id] == refund_id:
-                REFUNDED_PAYMENTS[chat_id] = refund_id  # Store the refund record
-                print(f"🔄 Refund received! Payment ID: {refund_id}")
-
-                # Notify the user
-                requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", json={
-                    "chat_id": chat_id,
-                    "text": "🔄 Your payment has been refunded successfully. Your Stars should be back in your balance soon!"
-                })
-            else:
-                print(f"⚠️ Refund received for unknown or mismatched payment: {refund_id}")
-
-        return jsonify({"status": "ok"})
-
-    except Exception as e:
-        print(f"⚠️ Error in processing webhook: {str(e)}")
-        return render_template("error.html", message=str(e)), 500  # Render error page with message
 
 # Refund Route (for testing)
 @app.route("/refund", methods=["POST"])
