@@ -54,7 +54,31 @@ button:hover {
     </form>
 
     <script>
-        // You can use JavaScript to make AJAX requests for the refund if needed (optional)
+        function requestRefund() {
+    const user_id = document.getElementById('refund_user_id').value;
+    
+    if (!user_id) {
+        alert("Please enter your user ID!");
+        return;
+    }
+
+    fetch('/refund', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',  // This header is required
+        },
+        body: JSON.stringify({ user_id: user_id })  // Send data as JSON
+    })
+    .then(response => response.json())
+    .then(data => {
+        alert(data.message);  // Handle success message
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert("An error occurred while processing the refund.");
+    });
+}
+
     </script>
 </body>
 </html>
