@@ -122,7 +122,3 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
 
 
-    return jsonify({"message": "Refund request recorded. Wait for Telegram to process it.", "payment_id": payment_id})
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
