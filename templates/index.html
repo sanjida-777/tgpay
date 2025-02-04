@@ -3,40 +3,56 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Buy Item with Telegram Stars</title>
-    <link rel="stylesheet" href="/static/style.css">
-</head>
-<body>
-    <div class="container">
-        <h1>Buy {{ item_name }}</h1>
-        <p>Price: {{ item_price }} Telegram Star</p>
-        <button id="buy-button">Buy Now</button>
-    </div>
-
+    <title>Telegram Payments</title>
     <script>
-        document.getElementById("buy-button").addEventListener("click", function() {
-            const user_id = prompt("Enter your Telegram User ID:");
-
-            if (!user_id) {
+        async function makePayment() {
+            const userId = prompt("Enter your Telegram User ID:");
+            if (!userId) {
                 alert("User ID is required!");
                 return;
             }
 
-            fetch("/pay", {
+            const response = await fetch("/pay", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ user_id: user_id })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.ok) {
-                    alert("Payment request sent! Complete it in Telegram.");
-                } else {
-                    alert("Error: " + data.description);
-                }
-            })
-            .catch(error => console.error("Error:", error));
-        });
+                body: JSON.stringify({ user_id: userId })
+            });
+
+            const data = await response.json();
+            if (data.ok) {
+                alert("✅ Payment request sent! Check your Telegram.");
+            } else {
+                alert("❌ Payment failed: " + JSON.stringify(data));
+            }
+        }
+
+        async function requestRefund() {
+            const userId = prompt("Enter your Telegram User ID:");
+            if (!userId) {
+                alert("User ID is required!");
+                return;
+            }
+
+            const response = await fetch("/refund", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ user_id: userId })
+            });
+
+            const data = await response.json();
+            if (data.message) {
+                alert("✅ Refund Successful!");
+            } else {
+                alert("❌ Refund Failed: " + JSON.stringify(data));
+            }
+        }
     </script>
+</head>
+<body>
+    <h1>Telegram Payments</h1>
+    <p>Purchase: <b>{{ item_name }}</b> for <b>{{ item_price }}</b> units.</p>
+
+    <button onclick="makePayment()">💳 Make Payment</button>
+    <button onclick="requestRefund()">🔄 Request Refund</button>
 </body>
 </html>
