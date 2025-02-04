@@ -31,7 +31,7 @@ def pay():
         "payload": "unique_payload",
         "provider_token": PROVIDER_TOKEN,
         "currency": "XTR",
-        "prices": [{"label": ITEM_NAME, "amount": ITEM_PRICE * 100}],  # Amount in smallest units
+        "prices": [{"label": ITEM_NAME, "amount": ITEM_PRICE }],  # Amount in smallest units
         "start_parameter": "start"
     }
 
