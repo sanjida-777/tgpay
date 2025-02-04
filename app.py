@@ -8,8 +8,8 @@ logging.basicConfig(level=logging.DEBUG)
 app = Flask(__name__)
 
 # Telegram Bot Credentials
-BOT_TOKEN = "6477272802:AAFiO2Z9LGPXnmNLu-alkXqn-lQanQblZoM"
-PROVIDER_TOKEN = "6073714100:TEST:TG_OBqaSK8xDn4xEZBq7AQ16N8A"  # Replace with your Stars provider token
+BOT_TOKEN = "" #your bot token
+PROVIDER_TOKEN = ""  # Replace with your Stars provider token
 ITEM_NAME = "Premium Item"
 ITEM_PRICE = 1  # 1 Star
 
