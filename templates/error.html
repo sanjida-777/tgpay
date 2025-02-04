@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Telegram Payment & Refund</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            width: 80%;
+            margin: 50px auto;
+            text-align: center;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        .button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 15px 32px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+            margin: 20px;
+        }
+
+        .button:hover {
+            background-color: #45a049;
+        }
+
+        input {
+            padding: 10px;
+            font-size: 16px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            margin: 10px 0;
+            width: 60%;
+        }
+
+        .message {
+            margin-top: 20px;
+            font-size: 18px;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Welcome to the Telegram Store</h1>
+    <p>Purchase the Exclusive Item for 1 Telegram Stars!</p>
+
+    <form id="paymentForm">
+        <input type="text" id="user_id" placeholder="Enter your Telegram User ID" required>
+        <button type="button" class="button" onclick="makePayment()">Buy Item</button>
+    </form>
+
+    <p class="message" id="paymentMessage"></p>
+
+    <h2>Request Refund</h2>
+    <form id="refundForm">
+        <input type="text" id="refund_user_id" placeholder="Enter your Telegram User ID for Refund" required>
+        <button type="button" class="button" onclick="requestRefund()">Request Refund</button>
+    </form>
+
+    <p class="message" id="refundMessage"></p>
+</div>
+
+<script>
+    function makePayment() {
+        const user_id = document.getElementById('user_id').value;
+        if (!user_id) {
+            alert("Please enter your user ID!");
+            return;
+        }
+
+        fetch('/pay', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ user_id: user_id })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                document.getElementById('paymentMessage').innerText = data.error;
+            } else {
+                document.getElementById('paymentMessage').innerText = "Payment successful! Please check your Telegram.";
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert("An error occurred while processing the payment.");
+        });
+    }
+
+    function requestRefund() {
+        const user_id = document.getElementById('refund_user_id').value;
+        if (!user_id) {
+            alert("Please enter your user ID!");
+            return;
+        }
+
+        fetch('/refund', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ user_id: user_id })
+        })
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('refundMessage').innerText = data.message || data.error;
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert("An error occurred while processing the refund.");
+        });
+    }
+</script>
+
+</body>
+</html>
