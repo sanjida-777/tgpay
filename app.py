@@ -67,11 +67,11 @@ def webhook():
     if not data:
         print("⚠️ No data received!")
         return jsonify({"status": "error", "message": "No data received"}), 400
-    
+
     # ✅ Log the message part to ensure it's correctly received
     if 'message' not in data:
         print("⚠️ 'message' key not found in webhook data")
-        return jsonify({"status": "error", "message": "'message' key missing"}), 400
+        return render_template("error.html", message="'message' key missing"), 400  # Render error page
 
     message_data = data["message"]
     print("🔹 Message Data:", json.dumps(message_data, indent=2))  # Log the message content
@@ -80,15 +80,15 @@ def webhook():
         # ✅ Handle Successful Payment
         if "successful_payment" in message_data:
             successful_payment = message_data["successful_payment"]
-            
+
             # Check if 'chat' exists in the message before accessing it
             chat_id = None
             if 'chat' in message_data:
                 chat_id = str(message_data["chat"]["id"])
-            
+
             if not chat_id:
                 print("⚠️ 'chat' key not found in message")
-                return jsonify({"status": "error", "message": "'chat' key missing"}), 400
+                return render_template("error.html", message="'chat' key missing"), 400  # Render error page
 
             payment_id = successful_payment["telegram_payment_charge_id"]
 
@@ -105,15 +105,15 @@ def webhook():
         # ✅ Handle Refund Notifications from Telegram
         if "refunded_payment" in message_data:
             refunded_payment = message_data["refunded_payment"]
-            
+
             # Check if 'chat' exists in the message before accessing it
             chat_id = None
             if 'chat' in message_data:
                 chat_id = str(message_data["chat"]["id"])
-            
+
             if not chat_id:
                 print("⚠️ 'chat' key not found in refunded_payment message")
-                return jsonify({"status": "error", "message": "'chat' key missing"}), 400
+                return render_template("error.html", message="'chat' key missing"), 400  # Render error page
 
             refund_id = refunded_payment["telegram_payment_charge_id"]
 
@@ -134,7 +134,7 @@ def webhook():
 
     except Exception as e:
         print(f"⚠️ Error in processing webhook: {str(e)}")
-        return jsonify({"status": "error", "message": str(e)}), 500
+        return render_template("error.html", message=str(e)), 500  # Render error page with message
 
 # Refund Route (for testing)
 @app.route("/refund", methods=["POST"])
