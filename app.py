@@ -32,7 +32,8 @@ def pay():
         "provider_token": PROVIDER_TOKEN,
         "currency": "XTR",
         "prices": [{"label": ITEM_NAME, "amount": ITEM_PRICE }],  # Amount in smallest units
-        "start_parameter": "start"
+        "start_parameter": "start",
+        "provider_data" : "{}"
     }
 
     response = requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendInvoice", json=payload)
